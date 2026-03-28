@@ -20,15 +20,22 @@ export async function POST(req: Request) {
 
     let title = $('meta[property="og:title"]').attr("content") || $("h1").first().text().trim() || "Produit sans titre";
     
-    // Stratégie image : Chercher og:image, sinon chercher la première belle image (Z2U utilise souvent des classes comme goods-img)
-    let image = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content") || "";
+    // Stratégie image : Spécifique à Z2U (amazonImageShow) ou tags Meta
+    let image = "";
+    $("img").each((i, el) => {
+      const src = $(el).attr("src") || "";
+      if (src.includes("amazonImageShow") || src.includes("sell_product/items") || src.includes("goods-img")) {
+        image = src;
+        return false; // Stop la boucle dès qu'on a trouvé la bonne!
+      }
+    });
     if (!image || image.length < 5) {
-      image = $('.goods-img img').attr('src') || $('.product-img img').attr('src') || $('.goods-detail img').attr('src') || $('img').filter((i, el) => ($(el).attr('src') || '').includes('http')).first().attr('src') || "";
+      image = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content") || "";
     }
 
-    // Stratégie description : Chercher le vrai texte du produit (les metas sont souvent limitées ou fausses chez Z2U)
+    // Stratégie description : Chercher le vrai texte du produit
     let description = "";
-    const descSelectors = ['.desc-content', '.detail-content', '.goods-detail', '.product-description', '#description', '.product-details', '.section-description'];
+    const descSelectors = ['.des-text', '.desc-content', '.detail-content', '.goods-detail', '.product-description', '#description', '.product-details', '.section-description', '.goods-info'];
     for (const selector of descSelectors) {
        const text = $(selector).text().trim();
        if (text && text.length > 30) {
