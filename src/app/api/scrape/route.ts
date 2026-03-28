@@ -16,41 +16,78 @@ export async function POST(req: Request) {
       }
     });
     
-    const $ = cheerio.load(html);
+    // ---------------------------------------------------------
+    // STRATÉGIE GÉNÉRIQUE D'ASPIRATION (Universelle)
+    // ---------------------------------------------------------
 
-    let title = $('meta[property="og:title"]').attr("content") || $("h1").first().text().trim() || "Produit sans titre";
+    // 1. TITRE
+    let title = $('meta[property="og:title"]').attr("content") || 
+                $('meta[name="twitter:title"]').attr("content") || 
+                $("h1").first().text().trim() || 
+                $("title").first().text().trim() || 
+                "Produit sans titre";
     
-    // Stratégie image : Spécifique à Z2U (amazonImageShow) ou tags Meta
-    let image = "";
-    $("img").each((i, el) => {
-      const src = $(el).attr("src") || "";
-      if (src.includes("amazonImageShow") || src.includes("sell_product/items") || src.includes("goods-img")) {
-        image = src;
-        return false; // Stop la boucle dès qu'on a trouvé la bonne!
-      }
-    });
+    // 2. IMAGE
+    let image = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content") || "";
+    
     if (!image || image.length < 5) {
-      image = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content") || "";
+      // Approche générique: chercher une image liée au "produit" via les attributs
+      $("img").each((i, el) => {
+        const src = $(el).attr("src") || "";
+        const className = $(el).attr("class") || "";
+        const idName = $(el).attr("id") || "";
+        const combined = (src + className + idName).toLowerCase();
+        
+        if (combined.includes("product") || combined.includes("main") || combined.includes("item") || combined.includes("gallery") || combined.includes("amazonimage")) {
+           if(src.startsWith("http")) {
+               image = src;
+               return false;
+           }
+        }
+      });
+      // Fallback absolu: la première image valide de la page
+      if (!image) {
+          image = $('img').filter((i, el) => ($(el).attr('src') || '').startsWith('http')).first().attr('src') || "";
+      }
     }
 
-    // Stratégie description : Chercher le vrai texte du produit
+    // 3. DESCRIPTION (L'algorithme du bloc le plus long)
     let description = "";
-    const descSelectors = ['.des-text', '.desc-content', '.detail-content', '.goods-detail', '.product-description', '#description', '.product-details', '.section-description', '.goods-info'];
-    for (const selector of descSelectors) {
-       const text = $(selector).text().trim();
-       if (text && text.length > 30) {
-           description = text; // Prends le vrai texte de description
-           break;
-       }
-    }
     
-    // Si la recherche DOM échoue, on revient sur les Meta
-    if (!description || description.length < 30) {
-       description = $('meta[property="og:description"]').attr("content") || $("meta[name='description']").attr("content") || "Veuillez taper votre propre description ici.";
+    // Étape A : Filtrer tous les éléments dont le nom évoque une description
+    $("*").each((i, el) => {
+       const className = $(el).attr("class") || "";
+       const idName = $(el).attr("id") || "";
+       const combined = (className + idName).toLowerCase();
+       
+       if (combined.includes("desc") || combined.includes("detail") || combined.includes("info")) {
+           const text = $(el).text().trim();
+           // On garde le bloc contenant le plus long texte (évite de cibler juste un titre "Description")
+           if (text.length > 50 && text.length > description.length) {
+               description = text; 
+           }
+       }
+    });
+
+    // Étape B : Si échoue, chercher le plus long paragraphe classique rédigé
+    if (!description || description.length < 50) {
+        $("p").each((i, el) => {
+           const text = $(el).text().trim();
+           if (text.length > description.length) {
+               description = text;
+           }
+        });
     }
 
-    // Nettoyage rapide (enlever les double-espaces pour que ça soit lisible)
-    description = description.replace(/\s{2,}/g, '\n').trim();
+    // Étape C : Dernier recours SEO
+    if (!description || description.length < 50) {
+       description = $('meta[property="og:description"]').attr("content") || 
+                     $("meta[name='description']").attr("content") || 
+                     "Veuillez taper votre propre description ici.";
+    }
+
+    // Nettoyage: enlever les centaines d'espaces / sauts de lignes illisibles
+    description = description.replace(/\n\s*\n/g, '\n\n').replace(/\s{3,}/g, '\n').trim();
     
     if (!title) {
         title = "Produit importé (Titre introuvable)";
