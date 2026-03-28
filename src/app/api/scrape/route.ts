@@ -16,6 +16,8 @@ export async function POST(req: Request) {
       }
     });
     
+    const $ = cheerio.load(html);
+
     // ---------------------------------------------------------
     // STRATÉGIE GÉNÉRIQUE D'ASPIRATION (Universelle)
     // ---------------------------------------------------------
