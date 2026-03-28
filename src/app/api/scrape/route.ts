@@ -18,9 +18,32 @@ export async function POST(req: Request) {
     
     const $ = cheerio.load(html);
 
-    let title = $('meta[property="og:title"]').attr("content") || $("h1").first().text().trim();
-    let description = $('meta[property="og:description"]').attr("content") || $("meta[name='description']").attr("content") || "Produit importé automatiquement.";
-    let image = $('meta[property="og:image"]').attr("content") || "";
+    let title = $('meta[property="og:title"]').attr("content") || $("h1").first().text().trim() || "Produit sans titre";
+    
+    // Stratégie image : Chercher og:image, sinon chercher la première belle image (Z2U utilise souvent des classes comme goods-img)
+    let image = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content") || "";
+    if (!image || image.length < 5) {
+      image = $('.goods-img img').attr('src') || $('.product-img img').attr('src') || $('.goods-detail img').attr('src') || $('img').filter((i, el) => ($(el).attr('src') || '').includes('http')).first().attr('src') || "";
+    }
+
+    // Stratégie description : Chercher le vrai texte du produit (les metas sont souvent limitées ou fausses chez Z2U)
+    let description = "";
+    const descSelectors = ['.desc-content', '.detail-content', '.goods-detail', '.product-description', '#description', '.product-details', '.section-description'];
+    for (const selector of descSelectors) {
+       const text = $(selector).text().trim();
+       if (text && text.length > 30) {
+           description = text; // Prends le vrai texte de description
+           break;
+       }
+    }
+    
+    // Si la recherche DOM échoue, on revient sur les Meta
+    if (!description || description.length < 30) {
+       description = $('meta[property="og:description"]').attr("content") || $("meta[name='description']").attr("content") || "Veuillez taper votre propre description ici.";
+    }
+
+    // Nettoyage rapide (enlever les double-espaces pour que ça soit lisible)
+    description = description.replace(/\s{2,}/g, '\n').trim();
     
     if (!title) {
         title = "Produit importé (Titre introuvable)";
