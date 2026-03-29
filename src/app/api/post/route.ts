@@ -109,7 +109,7 @@ export async function POST(req: Request) {
           maxQuantity: 0,
           type: "SINGLE",
           chargeType: "ONE_TIME",
-          deliveryType: "SERVICE", 
+          deliveryType: "PRESET", 
           customerNote: defaultMsg,
           gateways: autoGatewayIds 
         }
