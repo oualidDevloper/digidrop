@@ -10,8 +10,6 @@ export default function Home() {
   const [margin, setMargin] = useState(2);
   const [apiKey, setApiKey] = useState("");
   const [shopId, setShopId] = useState("");
-  const [gatewayIds, setGatewayIds] = useState("");
-  const [customMessage, setCustomMessage] = useState("Thank you for your purchase! Your order is currently being processed by our team. As this is a premium digital product, we are performing a final verification to ensure you receive a fully working item. You will receive your delivery details in a separate email shortly (usually within 30 minutes to a few hours). Thank you for your patience and for choosing our shop!");
   
   const [loading, setLoading] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -19,6 +17,28 @@ export default function Home() {
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [result, setResult] = useState<{ success: boolean; message: string; details?: string } | null>(null);
+
+  const fetchCategories = async () => {
+    if (!apiKey || !shopId) return;
+    try {
+      const res = await fetch(`/api/categories?apiKey=${apiKey}&shopId=${shopId}`);
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.categories || []);
+        if (data.categories?.length > 0 && !selectedCategory) {
+          setSelectedCategory(data.categories[0].id.toString());
+        }
+      }
+    } catch (err) {
+      console.error("Erreur chargement catégories:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (apiKey && shopId) {
+      fetchCategories();
+    }
+  }, [apiKey, shopId]);
 
   // Étape 1 : Aspiration (Scrape)
   const handleScrape = async (e: React.FormEvent) => {
@@ -40,7 +60,6 @@ export default function Home() {
       
       if (response.ok) {
         setScrapedData(data.data);
-        fetchCategories(); // Charger les catégories dès que le scrape réussit
       } else {
         setResult({ success: false, message: data.error || "Une erreur est survenue lors de l'aspiration." });
       }
@@ -51,34 +70,6 @@ export default function Home() {
     }
   };
 
-  // Charger les catégories
-  const fetchCategories = async () => {
-    if (!apiKey || !shopId) return;
-    try {
-      const res = await fetch(`/api/categories?apiKey=${apiKey}&shopId=${shopId}`);
-      const data = await res.json();
-      if (data.success) {
-        setCategories(data.categories || []);
-        if (data.categories?.length > 0 && !selectedCategory) {
-          setSelectedCategory(data.categories[0].id.toString());
-        }
-        // Auto-remplissage des Gateways si vide et qu'on en trouve
-        if (data.gateways?.length > 0 && !gatewayIds) {
-          const ids = data.gateways.map((g: any) => g.id).join(", ");
-          setGatewayIds(ids);
-        }
-      }
-    } catch (err) {
-      console.error("Erreur chargement catégories:", err);
-    }
-  };
-
-  // Charger les catégories automatiquement quand les IDs sont présents
-  useEffect(() => {
-    if (apiKey && shopId) {
-      fetchCategories();
-    }
-  }, [apiKey, shopId]);
 
   // Étape 2 : Publication (Post to Antistock)
   const handlePost = async () => {
@@ -95,7 +86,7 @@ export default function Home() {
       const response = await fetch("/api/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...scrapedData, apiKey, shopId, categoryId: selectedCategory, gatewayIds, customMessage }),
+        body: JSON.stringify({ ...scrapedData, apiKey, shopId, categoryId: selectedCategory }),
       });
 
       const data = await response.json();
@@ -124,29 +115,22 @@ export default function Home() {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#A13DFF]/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[#A13DFF]/30">
-            <UploadCloud className="w-8 h-8 text-[#A13DFF]" />
+          <div className="w-16 h-16 bg-[#00D8FF]/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[#00D8FF]/30">
+            <UploadCloud className="w-8 h-8 text-[#00D8FF]" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">DigiDrop Scraper</h1>
-          <p className="text-[#A3A3A3] text-sm">Aspiration & Prévisualisation avant Publication</p>
+          <p className="text-[#A3A3A3] text-sm">Aspiration & Publication Automatisée en un clic</p>
         </div>
 
         {/* Global Configuration */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-[#262626]">
           <div className="space-y-2">
             <label className="text-sm font-medium text-[#A3A3A3]">API Key Antistock</label>
-            <input type="password" required value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk_live_..." className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#A13DFF] focus:ring-1 focus:ring-[#A13DFF] transition-all text-sm" />
+            <input type="password" required value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk_live_..." className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm" />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-[#A3A3A3]">Shop ID Antistock</label>
-            <input type="text" required value={shopId} onChange={e => setShopId(e.target.value)} placeholder="01234..." className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#A13DFF] focus:ring-1 focus:ring-[#A13DFF] transition-all text-sm" />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-[#A3A3A3]">Passerelles de Paiement (Gateway IDs, séparés par virgule)</label>
-            <input type="text" value={gatewayIds} onChange={e => setGatewayIds(e.target.value)} placeholder="ex: 12345, 67890" className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm" />
-            <p className="text-[10px] text-[#666] mt-1">
-              Les IDs permettent de rendre le produit "Achetable" immédiatement. {gatewayIds ? "IDs actifs détectés." : "Chargement auto depuis Antistock..."}
-            </p>
+            <input type="text" required value={shopId} onChange={e => setShopId(e.target.value)} placeholder="01234..." className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm" />
           </div>
         </div>
 
@@ -155,15 +139,15 @@ export default function Home() {
           <form onSubmit={handleScrape} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#A3A3A3] flex items-center gap-2">
-                <LinkIcon className="w-4 h-4" /> URL du Produit Fournisseur
+                <LinkIcon className="w-4 h-4" /> URL du Produit Z2U
               </label>
               <input
                 type="url"
                 required
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://site-fournisseur.com/produit/..."
-                className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#A13DFF] focus:ring-1 focus:ring-[#A13DFF] transition-all text-sm"
+                placeholder="https://www.z2u.com/..."
+                className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm"
               />
             </div>
 
@@ -179,7 +163,7 @@ export default function Home() {
                   step="0.1"
                   value={margin}
                   onChange={(e) => setMargin(parseFloat(e.target.value))}
-                  className="w-full cursor-pointer accent-[#A13DFF]"
+                  className="w-full cursor-pointer accent-[#00D8FF]"
                 />
                 <span className="bg-[#0A0A0A] border border-[#262626] px-4 py-2 rounded-lg font-mono font-bold w-20 text-center">
                   x{margin}
@@ -190,10 +174,10 @@ export default function Home() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#262626] to-[#363636] hover:bg-[#404040] text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-[#00D8FF] hover:opacity-90 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-              {loading ? "Aspiration en cours..." : "1. Aspirer les données (Test)"}
+              {loading ? "Aspiration..." : "1. Aspirer les données"}
             </button>
           </form>
         )}
@@ -214,30 +198,11 @@ export default function Home() {
                     className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none" 
                   />
                 </div>
-                <div className="space-y-2 w-48">
-                  <label className="text-xs font-semibold text-[#A3A3A3]">Catégorie</label>
-                  <div className="relative">
-                    <select 
-                      value={selectedCategory} 
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      onFocus={fetchCategories}
-                      className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none appearance-none cursor-pointer"
-                    >
-                      {categories.length === 0 && <option value="">Chargement...</option>}
-                      {categories.map((cat: any) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#A3A3A3]">
-                      <Edit3 className="w-3 h-3" />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="flex gap-4">
                 <div className="space-y-2 w-1/3">
-                  <label className="text-xs font-semibold text-[#A3A3A3]">Prix de Vente (€)</label>
+                  <label className="text-xs font-semibold text-[#A3A3A3]">Prix (€)</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -247,14 +212,28 @@ export default function Home() {
                   />
                 </div>
                 <div className="space-y-2 w-2/3">
-                  <label className="text-xs font-semibold text-[#A3A3A3]">URL de l'image (Optionnel)</label>
-                  <input 
-                    type="text" 
-                    value={scrapedData.image} 
-                    onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})} 
-                    className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none" 
-                  />
+                  <label className="text-xs font-semibold text-[#A3A3A3]">Catégorie Antistock</label>
+                  <select 
+                    value={selectedCategory} 
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none cursor-pointer"
+                  >
+                    {categories.length === 0 && <option value="">Chargement...</option>}
+                    {categories.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-[#A3A3A3]">Image URL</label>
+                <input 
+                  type="text" 
+                  value={scrapedData.image} 
+                  onChange={(e) => setScrapedData({...scrapedData, image: e.target.value})} 
+                  className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none" 
+                />
               </div>
 
               <div className="space-y-2">

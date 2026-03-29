@@ -16,8 +16,8 @@ async function debugShop() {
         const endpoints = [
             `https://business-api.antistock.io/v1/dash/shops/${shopId}/gateways`,
             `https://business-api.antistock.io/v1/dash/shops/${shopId}/settings/gateways`,
-            `https://business-api.antistock.io/v1/dash/shops/${shopId}/payment-gateways`,
-            `https://business-api.antistock.io/v1/dash/gateways`
+            `https://business-api.antistock.io/v1/dash/gateways`,
+            `https://business-api.antistock.io/v1/gateways`
         ];
         for (const url of endpoints) {
             try {
