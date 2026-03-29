@@ -133,8 +133,12 @@ export async function POST(req: Request) {
 
   } catch (apiError: any) {
     console.error("Antistock API Error:", apiError.response?.data || apiError.message);
+    const errorMsg = apiError.response?.data?.message || apiError.message || "Erreur inconnue";
+    const errorDetails = apiError.response?.data ? JSON.stringify(apiError.response.data) : "";
+    
     return NextResponse.json({ 
-      error: `Erreur Antistock: ${apiError.response?.data?.message || "Clé API ou Shop ID invalide."}` 
+      error: `Erreur Antistock: ${errorMsg}`,
+      details: errorDetails
     }, { status: 400 });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Link as LinkIcon, DollarSign, UploadCloud, CheckCircle, AlertCircle, Loader2, Edit3, Send } from "lucide-react";
 
 type ScrapedData = { title: string; description: string; price: number; image: string };
@@ -18,7 +18,7 @@ export default function Home() {
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [result, setResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; details?: string } | null>(null);
 
   // Étape 1 : Aspiration (Scrape)
   const handleScrape = async (e: React.FormEvent) => {
@@ -40,6 +40,7 @@ export default function Home() {
       
       if (response.ok) {
         setScrapedData(data.data);
+        fetchCategories(); // Charger les catégories dès que le scrape réussit
       } else {
         setResult({ success: false, message: data.error || "Une erreur est survenue lors de l'aspiration." });
       }
@@ -67,6 +68,13 @@ export default function Home() {
     }
   };
 
+  // Charger les catégories automatiquement quand les IDs sont présents
+  useEffect(() => {
+    if (apiKey && shopId) {
+      fetchCategories();
+    }
+  }, [apiKey, shopId]);
+
   // Étape 2 : Publication (Post to Antistock)
   const handlePost = async () => {
     if (!scrapedData) return;
@@ -88,11 +96,15 @@ export default function Home() {
       const data = await response.json();
       
       if (response.ok) {
-        setResult({ success: true, message: "Produit publié avec succès sur votre boutique Antistock !", data });
+        setResult({ success: true, message: "Produit publié avec succès sur votre boutique Antistock !" });
         setScrapedData(null); // Clear form after success
         setUrl("");
       } else {
-        setResult({ success: false, message: data.error || "Erreur lors de la publication." });
+        setResult({ 
+          success: false, 
+          message: data.error || "Erreur lors de la publication.",
+          details: data.details || ""
+        });
       }
     } catch (err: any) {
       setResult({ success: false, message: err.message || "Erreur de connexion serveur pour la publication." });
@@ -239,24 +251,12 @@ export default function Home() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#A3A3A3]">Description Manuelle</label>
                 <textarea 
                   rows={4} 
                   value={scrapedData.description} 
                   onChange={(e) => setScrapedData({...scrapedData, description: e.target.value})} 
                   className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none resize-none" 
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-yellow-500/80">Message de Confirmation (Post-Achat/Email)</label>
-                <textarea 
-                  rows={3} 
-                  value={customMessage} 
-                  onChange={(e) => setCustomMessage(e.target.value)} 
-                  className="w-full bg-[#0A0A0A] border border-yellow-500/20 rounded-lg px-3 py-2 text-sm focus:border-yellow-500/50 focus:outline-none resize-none text-[#A3A3A3]" 
-                />
-                <p className="text-[10px] text-[#666]">Ce message sera envoyé au client après son paiement (anglais par défaut).</p>
               </div>
             </div>
 
@@ -285,6 +285,7 @@ export default function Home() {
             {result.success ? <CheckCircle className="w-6 h-6 flex-shrink-0" /> : <AlertCircle className="w-6 h-6 flex-shrink-0 text-red-400" />}
             <div>
               <p className={`font-semibold text-sm ${!result.success && 'text-red-400'}`}>{result.message}</p>
+              {result.details && <p className="text-xs mt-1 text-red-300 opacity-80">{result.details}</p>}
             </div>
           </div>
         )}
