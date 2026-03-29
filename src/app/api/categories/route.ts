@@ -11,12 +11,27 @@ export async function GET(req: Request) {
   }
 
   try {
-    const res = await axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/categories`, {
-      headers: { "Authorization": `Bearer ${apiKey}` }
+    const [catRes, payRes] = await Promise.all([
+      axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/categories`, {
+        headers: { "Authorization": `Bearer ${apiKey}` }
+      }),
+      axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/settings/payments`, {
+        headers: { "Authorization": `Bearer ${apiKey}` }
+      })
+    ]);
+
+    const gateways = payRes.data.data.paymentsGateways.map((g: any) => ({
+      id: g.id,
+      name: g.gatewayName || g.name || "Unknown"
+    }));
+
+    return NextResponse.json({ 
+      success: true, 
+      categories: catRes.data.data,
+      gateways: gateways 
     });
-    return NextResponse.json({ success: true, data: res.data.data });
   } catch (error: any) {
-    console.error("Fetch categories error:", error.response?.data || error.message);
-    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
+    console.error("Fetch debug error:", error.response?.data || error.message);
+    return NextResponse.json({ error: "Failed to fetch shop data" }, { status: 500 });
   }
 }

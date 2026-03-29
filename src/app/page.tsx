@@ -58,9 +58,14 @@ export default function Home() {
       const res = await fetch(`/api/categories?apiKey=${apiKey}&shopId=${shopId}`);
       const data = await res.json();
       if (data.success) {
-        setCategories(data.data);
-        if (data.data.length > 0 && !selectedCategory) {
-          setSelectedCategory(data.data[0].id.toString());
+        setCategories(data.categories || []);
+        if (data.categories?.length > 0 && !selectedCategory) {
+          setSelectedCategory(data.categories[0].id.toString());
+        }
+        // Auto-remplissage des Gateways si vide et qu'on en trouve
+        if (data.gateways?.length > 0 && !gatewayIds) {
+          const ids = data.gateways.map((g: any) => g.id).join(", ");
+          setGatewayIds(ids);
         }
       }
     } catch (err) {
@@ -139,7 +144,9 @@ export default function Home() {
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-[#A3A3A3]">Passerelles de Paiement (Gateway IDs, séparés par virgule)</label>
             <input type="text" value={gatewayIds} onChange={e => setGatewayIds(e.target.value)} placeholder="ex: 12345, 67890" className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm" />
-            <p className="text-[10px] text-[#666] mt-1">Laissez vide pour configurer manuellement plus tard. Les IDs permettent de rendre le produit "Achetable" immédiatement.</p>
+            <p className="text-[10px] text-[#666] mt-1">
+              Les IDs permettent de rendre le produit "Achetable" immédiatement. {gatewayIds ? "IDs actifs détectés." : "Chargement auto depuis Antistock..."}
+            </p>
           </div>
         </div>
 
