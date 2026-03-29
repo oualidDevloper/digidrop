@@ -10,10 +10,14 @@ export default function Home() {
   const [margin, setMargin] = useState(2);
   const [apiKey, setApiKey] = useState("");
   const [shopId, setShopId] = useState("");
+  const [gatewayIds, setGatewayIds] = useState("");
+  const [customMessage, setCustomMessage] = useState("Thank you for your purchase! Your order is currently being processed by our team. As this is a premium digital product, we are performing a final verification to ensure you receive a fully working item. You will receive your delivery details in a separate email shortly (usually within 30 minutes to a few hours). Thank you for your patience and for choosing our shop!");
   
   const [loading, setLoading] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [result, setResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
 
   // Étape 1 : Aspiration (Scrape)
@@ -46,6 +50,23 @@ export default function Home() {
     }
   };
 
+  // Charger les catégories
+  const fetchCategories = async () => {
+    if (!apiKey || !shopId) return;
+    try {
+      const res = await fetch(`/api/categories?apiKey=${apiKey}&shopId=${shopId}`);
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.data);
+        if (data.data.length > 0 && !selectedCategory) {
+          setSelectedCategory(data.data[0].id.toString());
+        }
+      }
+    } catch (err) {
+      console.error("Erreur chargement catégories:", err);
+    }
+  };
+
   // Étape 2 : Publication (Post to Antistock)
   const handlePost = async () => {
     if (!scrapedData) return;
@@ -61,7 +82,7 @@ export default function Home() {
       const response = await fetch("/api/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...scrapedData, apiKey, shopId }),
+        body: JSON.stringify({ ...scrapedData, apiKey, shopId, categoryId: selectedCategory, gatewayIds, customMessage }),
       });
 
       const data = await response.json();
@@ -102,6 +123,11 @@ export default function Home() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-[#A3A3A3]">Shop ID Antistock</label>
             <input type="text" required value={shopId} onChange={e => setShopId(e.target.value)} placeholder="01234..." className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#A13DFF] focus:ring-1 focus:ring-[#A13DFF] transition-all text-sm" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium text-[#A3A3A3]">Passerelles de Paiement (Gateway IDs, séparés par virgule)</label>
+            <input type="text" value={gatewayIds} onChange={e => setGatewayIds(e.target.value)} placeholder="ex: 12345, 67890" className="w-full bg-[#0A0A0A] border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-[#00D8FF] focus:ring-1 focus:ring-[#00D8FF] transition-all text-sm" />
+            <p className="text-[10px] text-[#666] mt-1">Laissez vide pour configurer manuellement plus tard. Les IDs permettent de rendre le produit "Achetable" immédiatement.</p>
           </div>
         </div>
 
@@ -159,14 +185,35 @@ export default function Home() {
             <h2 className="text-xl font-bold flex items-center gap-2"><Edit3 className="w-5 h-5 text-[#00D8FF]" /> Prévisualisation & Edition</h2>
             
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#A3A3A3]">Titre du Produit</label>
-                <input 
-                  type="text" 
-                  value={scrapedData.title} 
-                  onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})} 
-                  className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none" 
-                />
+              <div className="flex gap-4">
+                <div className="space-y-2 flex-1">
+                  <label className="text-xs font-semibold text-[#A3A3A3]">Titre du Produit</label>
+                  <input 
+                    type="text" 
+                    value={scrapedData.title} 
+                    onChange={(e) => setScrapedData({...scrapedData, title: e.target.value})} 
+                    className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none" 
+                  />
+                </div>
+                <div className="space-y-2 w-48">
+                  <label className="text-xs font-semibold text-[#A3A3A3]">Catégorie</label>
+                  <div className="relative">
+                    <select 
+                      value={selectedCategory} 
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      onFocus={fetchCategories}
+                      className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none appearance-none cursor-pointer"
+                    >
+                      {categories.length === 0 && <option value="">Chargement...</option>}
+                      {categories.map((cat: any) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#A3A3A3]">
+                      <Edit3 className="w-3 h-3" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-4">
@@ -199,6 +246,17 @@ export default function Home() {
                   onChange={(e) => setScrapedData({...scrapedData, description: e.target.value})} 
                   className="w-full bg-[#0A0A0A] border border-[#262626] rounded-lg px-3 py-2 text-sm focus:border-[#00D8FF] focus:outline-none resize-none" 
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-yellow-500/80">Message de Confirmation (Post-Achat/Email)</label>
+                <textarea 
+                  rows={3} 
+                  value={customMessage} 
+                  onChange={(e) => setCustomMessage(e.target.value)} 
+                  className="w-full bg-[#0A0A0A] border border-yellow-500/20 rounded-lg px-3 py-2 text-sm focus:border-yellow-500/50 focus:outline-none resize-none text-[#A3A3A3]" 
+                />
+                <p className="text-[10px] text-[#666]">Ce message sera envoyé au client après son paiement (anglais par défaut).</p>
               </div>
             </div>
 

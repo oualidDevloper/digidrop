@@ -4,7 +4,7 @@ import sharp from "sharp";
 
 export async function POST(req: Request) {
   try {
-    const { title, description, price, image, apiKey, shopId } = await req.json();
+    const { title, description, price, image, apiKey, shopId, categoryId, gatewayIds, customMessage } = await req.json();
 
     if (!apiKey || !shopId) {
       return NextResponse.json(
@@ -58,18 +58,28 @@ export async function POST(req: Request) {
     }
 
     // Conversion de la description en JSON DraftJS (requis par Antistock)
+    // On splitte par paragraphe pour un meilleur rendu
+    const paragraphs = description.split('\n').filter((p: string) => p.trim() !== "");
+    const blocks = paragraphs.map((text: string, index: number) => ({
+      key: `block-${index}`,
+      text: text,
+      type: "unstyled",
+      depth: 0,
+      inlineStyleRanges: [],
+      entityRanges: [],
+      data: {}
+    }));
+
     const draftJsDescription = JSON.stringify({
-      blocks: [
-        {
-          key: "antistock",
-          text: description,
-          type: "unstyled",
-          depth: 0,
-          inlineStyleRanges: [],
-          entityRanges: [],
-          data: {}
-        }
-      ],
+      blocks: blocks.length > 0 ? blocks : [{
+        key: "empty",
+        text: description,
+        type: "unstyled",
+        depth: 0,
+        inlineStyleRanges: [],
+        entityRanges: [],
+        data: {}
+      }],
       entityMap: {}
     });
 
@@ -77,8 +87,10 @@ export async function POST(req: Request) {
       name: title,
       description: draftJsDescription,
       status: "PUBLIC",
+      visibility: "PUBLIC",
+      unlisted: false,
       imageIds: [finalImageId], 
-      categoryId: 3022961,   // Catégorie Streaming
+      categoryId: categoryId ? parseInt(categoryId) : 3022961,
       variants: [
         {
           name: "Standard",
@@ -86,9 +98,14 @@ export async function POST(req: Request) {
             amount: parseFloat(price),
             currency: "EUR"
           },
-          stockLevel: 100,
+          stockLevel: 99999,
+          minQuantity: 1,
+          maxQuantity: 0,
           type: "SINGLE",
-          gateways: [] 
+          chargeType: "ONE_TIME",
+          deliveryType: "SERVICE", 
+          customerNote: customMessage || "", // Message de confirmation post-achat
+          gateways: gatewayIds ? gatewayIds.split(',').map((id: string) => id.trim()).filter((id: string) => id !== "") : [] 
         }
       ]
     };

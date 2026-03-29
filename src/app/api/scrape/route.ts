@@ -43,31 +43,33 @@ export async function POST(req: Request) {
                      $(".goods-info-pic img").first().attr("src") || 
                      $(".product-img-main img").first().attr("src") || 
                      $(".goods-img img").first().attr("src") ||
-                     $(".goods-info-img img").first().attr("src");
+                     $(".goods-info-img img").first().attr("src") ||
+                     $("[class*='product-image'] img").first().attr("src");
       if (z2uImg) image = z2uImg;
     }
 
     if (!image || image.length < 5) {
       // Approche générique: chercher une image liée au "produit" via les attributs
       $("img").each((i, el) => {
-        const src = $(el).attr("src") || "";
+        const src = $(el).attr("src") || $(el).attr("data-src") || "";
         const className = $(el).attr("class") || "";
         const idName = $(el).attr("id") || "";
         const combined = (src + className + idName).toLowerCase();
         
-        if (combined.includes("product") || combined.includes("main") || combined.includes("item") || combined.includes("gallery") || combined.includes("amazonimage")) {
-           if(src.startsWith("http") || src.startsWith("//")) {
+        if (combined.includes("product") || combined.includes("main") || combined.includes("item") || combined.includes("gallery")) {
+           if(src.startsWith("http") || src.startsWith("//") || src.startsWith("/")) {
                image = src;
                return false;
            }
         }
       });
       
-      // Fallback absolu: la première image valide de la page
+      // Fallback absolu: la première image valide de la page (non icon)
       if (!image) {
           image = $('img').filter((i, el) => {
             const s = $(el).attr('src') || '';
-            return s.startsWith('http') || s.startsWith('//');
+            const w = parseInt($(el).attr('width') || '0');
+            return (s.startsWith('http') || s.startsWith('//')) && !s.includes('icon') && (w > 100 || w === 0);
           }).first().attr('src') || "";
       }
     }
@@ -75,30 +77,37 @@ export async function POST(req: Request) {
     // Normalisation de l'URL
     if (image && image.startsWith("//")) {
       image = "https:" + image;
+    } else if (image && image.startsWith("/") && !image.startsWith("//")) {
+      const urlObj = new URL(url);
+      image = urlObj.origin + image;
     }
 
     // 3. DESCRIPTION
     let description = "";
     
     // Étape A : Filtrer tous les éléments dont le nom évoque une description
-    $("*").each((i, el) => {
-       const className = $(el).attr("class") || "";
-       const idName = $(el).attr("id") || "";
-       const combined = (className + idName).toLowerCase();
-       
-       if (combined.includes("desc") || combined.includes("detail") || combined.includes("info")) {
-           const text = $(el).text().trim();
-           if (text.length > 50 && text.length > description.length) {
-               description = text; 
-           }
-       }
-    });
+    const descSelectors = [".product-description", ".goods-info-detail", "#description", ".description", ".details", ".product-details"];
+    for (const sel of descSelectors) {
+      const text = $(sel).text().trim();
+      if (text.length > 50) {
+        description = text;
+        break;
+      }
+    }
 
-    // Étape B : Si échoue ou Z2U spécifique
     if (!description || description.length < 50) {
-        description = $(".product-description").text().trim() || 
-                      $(".goods-info-detail").text().trim() || 
-                      "";
+      $("*").each((i, el) => {
+         const className = $(el).attr("class") || "";
+         const idName = $(el).attr("id") || "";
+         const combined = (className + idName).toLowerCase();
+         
+         if (combined.includes("desc") || combined.includes("detail") || combined.includes("info")) {
+             const text = $(el).text().trim();
+             if (text.length > 50 && text.length > description.length) {
+                 description = text; 
+             }
+         }
+      });
     }
 
     if (!description || description.length < 50) {
@@ -118,7 +127,8 @@ export async function POST(req: Request) {
     }
 
     // Nettoyage
-    description = description.replace(/\n\s*\n/g, '\n\n').replace(/\s{3,}/g, '\n').trim();
+    description = description.replace(/\s+/g, ' ').trim();
+    if (description.length > 2000) description = description.substring(0, 1997) + "...";
     
     if (!title) title = "Produit importé";
 
@@ -127,13 +137,20 @@ export async function POST(req: Request) {
     
     // Sélecteurs spécifiques Z2U
     if (url.includes("z2u.com")) {
-        const z2uPrice = $(".goods-price-num").first().text() || $(".price").first().text();
+        const z2uPrice = $(".goods-price-num").first().text() || 
+                         $(".price").first().text() || 
+                         $(".goods-info-price").find(".num").text();
         if (z2uPrice) rawPrice = z2uPrice.replace(/[^0-9.,]/g, "").replace(",", ".");
     }
     
     // Fallback générique
     if (parseFloat(rawPrice) <= 0) {
-        const priceText = $('[class*="price"], [id*="price"]').first().text().replace(/[^0-9.,]/g, "").replace(",", ".");
+        const priceElement = $('[class*="price"], [id*="price"]').filter((i, el) => {
+          const text = $(el).text().trim();
+          return /[0-9]/.test(text) && text.length < 20;
+        }).first();
+        
+        const priceText = priceElement.text().replace(/[^0-9.,]/g, "").replace(",", ".");
         if (priceText) {
           const parsed = parseFloat(priceText);
           if (!isNaN(parsed)) rawPrice = parsed.toString();
