@@ -21,7 +21,7 @@ export default function Home() {
   const fetchCategories = async () => {
     if (!apiKey || !shopId) return;
     try {
-      const res = await fetch(`/api/categories?apiKey=${apiKey}&shopId=${shopId}`);
+      const res = await fetch(`/api/categories?apiKey=${encodeURIComponent(apiKey)}&shopId=${encodeURIComponent(shopId)}`);
       const data = await res.json();
       if (data.success) {
         setCategories(data.categories || []);

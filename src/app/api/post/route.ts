@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         }
 
         const gateways = payRes.data.data?.paymentsGateways || [];
-        autoGatewayIds = gateways.filter((g: any) => g.status === "ACTIVE").map((g: any) => g.id);
+        autoGatewayIds = gateways.filter((g: any) => g.status === "ACTIVE").map((g: any) => ({ gateway: g.gatewayName || g.name }));
       }
     } catch (fetchErr: any) {
       console.warn("Échec de l'auto-détection :", fetchErr.message);
