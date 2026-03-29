@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
+import sharp from "sharp";
 
 export async function POST(req: Request) {
   try {
@@ -12,19 +13,90 @@ export async function POST(req: Request) {
       );
     }
 
+    let finalImageId = 17444915; // Votre logo par défaut
+
+    // Tentative d'upload de l'image réelle du produit
+    if (image && image.startsWith("http")) {
+      try {
+        console.log("Téléchargement de l'image fournisseur:", image);
+        const imgRes = await axios.get(image, { 
+          responseType: 'arraybuffer',
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+
+        let imageBuffer = Buffer.from(imgRes.data);
+        const contentType = imgRes.headers['content-type'] || '';
+        
+        // Conversion WebP -> PNG si nécessaire
+        if (contentType.includes('webp') || image.toLowerCase().endsWith('.webp')) {
+          console.log("Conversion WebP -> PNG en cours...");
+          imageBuffer = await sharp(imageBuffer).png().toBuffer();
+        }
+
+        const blob = new Blob([imageBuffer], { type: 'image/png' });
+        
+        const formData = new FormData();
+        formData.append('file', blob, 'image.png');
+
+        const uploadRes = await axios.post(
+          `https://business-api.antistock.io/v1/dash/shops/${shopId}/images`,
+          formData,
+          {
+            headers: {
+              "Authorization": `Bearer ${apiKey}`
+            }
+          }
+        );
+
+        if (uploadRes.data?.data?.id) {
+          finalImageId = uploadRes.data.data.id;
+          console.log("Image uploadée sur Antistock avec succès, ID:", finalImageId);
+        }
+      } catch (uploadErr: any) {
+        console.error("Échec de l'upload d'image (utilisation du fallback):", uploadErr.message);
+      }
+    }
+
+    // Conversion de la description en JSON DraftJS (requis par Antistock)
+    const draftJsDescription = JSON.stringify({
+      blocks: [
+        {
+          key: "antistock",
+          text: description,
+          type: "unstyled",
+          depth: 0,
+          inlineStyleRanges: [],
+          entityRanges: [],
+          data: {}
+        }
+      ],
+      entityMap: {}
+    });
+
     const antistockPayload = {
-      title,
-      description,
-      price: parseFloat(price),
-      currency: "EUR",
-      productType: "SERVICE", // Mode Dropshipping
-      thumbnailInfo: image ? { url: image } : undefined,
-      visibility: "PUBLIC",
-      seo: { title, description }
+      name: title,
+      description: draftJsDescription,
+      status: "PUBLIC",
+      imageIds: [finalImageId], 
+      categoryId: 3022961,   // Catégorie Streaming
+      variants: [
+        {
+          name: "Standard",
+          price: {
+            amount: parseFloat(price),
+            currency: "EUR"
+          },
+          stockLevel: 100,
+          type: "SINGLE",
+          gateways: [] 
+        }
+      ]
     };
 
+    console.log("Publication sur Antistock avec l'ID image:", finalImageId);
+    
     const antistockResponse = await axios.post(
-      `https://api.sellpass.io/v1/dash/shops/${shopId}/products`,
+      `https://business-api.antistock.io/v1/dash/shops/${shopId}/products`,
       antistockPayload,
       {
         headers: {
@@ -34,9 +106,11 @@ export async function POST(req: Request) {
       }
     );
 
+    console.log("Produit créé avec succès ! Réponse:", JSON.stringify(antistockResponse.data));
+
     return NextResponse.json({
       success: true,
-      message: "Publication réussie sur Antistock !",
+      message: "Publication réussie avec l'image d'origine !",
       product: antistockResponse.data
     });
 
