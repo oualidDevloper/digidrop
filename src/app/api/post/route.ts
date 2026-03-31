@@ -104,13 +104,23 @@ export async function POST(req: Request) {
         {
           name: "Standard",
           price: { amount: parseFloat(price), currency: "EUR" },
-          stockLevel: 99999,
           minQuantity: 1,
           maxQuantity: 0,
-          type: "SINGLE",
           chargeType: "ONE_TIME",
           deliveryType: "PRESET", 
           customerNote: defaultMsg,
+          deliveryConfigurations: [
+            {
+              type: "SERIALS",
+              warehouseId: 2151518,
+              limitStock: 1,
+              displayStock: false
+            },
+            {
+              type: "TEXT",
+              textData: defaultMsg
+            }
+          ],
           gateways: autoGatewayIds 
         }
       ]

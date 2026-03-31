@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Logs and temporary files
+*.log
+*.txt
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+!next.config.mjs
+
+# Backup and models
+modele_detail.json
+all_products.json
+template_detail.json
