@@ -97,8 +97,17 @@ export async function POST(req: Request) {
       key: `block-${index}`, text, type: "unstyled", depth: 0, inlineStyleRanges: [], entityRanges: [], data: {}
     }));
 
-    const antistockPayload = {
+    // Helper to generate a slug
+    const slug = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const antistockPayload: any = {
       name: title,
+      slug: slug,
       description: JSON.stringify({
         blocks: blocks.length > 0 ? blocks : [{ key: "e", text: description, type: "unstyled", depth: 0, inlineStyleRanges: [], entityRanges: [], data: {} }],
         entityMap: {}
