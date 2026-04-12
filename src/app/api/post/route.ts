@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       variants: [
         {
           name: "Standard",
-          price: { amount: parseFloat(price), currency: "EUR" },
+          price: { amount: parseFloat(price), currency: "USD" },
           minQuantity: 1,
           maxQuantity: 0,
           chargeType: "ONE_TIME",
