@@ -24,7 +24,16 @@ export async function POST(req: Request) {
         headers: { "Authorization": `Bearer ${apiKey}` }
       });
       const gateways = payRes.data.data?.paymentsGateways || [];
-      autoGatewayIds = gateways.filter((g: any) => g.status === "ACTIVE").map((g: any) => ({ gateway: g.gatewayName || g.name }));
+      autoGatewayIds = gateways
+        .filter((g: any) => g.status === "ACTIVE")
+        .map((g: any) => ({ gateway: g.gatewayName || g.name }));
+      
+      // Force ForebitPayments (Cryptocurrency) if not already in the list
+      if (!autoGatewayIds.some((g: any) => g.gateway === "ForebitPayments")) {
+        autoGatewayIds.push({ gateway: "ForebitPayments" });
+      }
+      
+      console.log("Attached Gateways:", JSON.stringify(autoGatewayIds));
 
       if (categoryId) {
         autoCategoryId = parseInt(categoryId);
