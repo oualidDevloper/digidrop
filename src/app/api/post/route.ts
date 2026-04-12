@@ -19,19 +19,21 @@ export async function POST(req: Request) {
     const defaultMsg = "Thank you for your purchase! Your order is currently being processed by our team. As this is a premium digital product, we are performing a final verification to ensure you receive a fully working item. You will receive your delivery details in a separate email shortly (usually within 30 minutes to a few hours). Thank you for your patience and for choosing our shop!";
 
     try {
+      console.log("Extraction des paramètres de la boutique (Gateways)...");
+      const payRes = await axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/settings/payments`, {
+        headers: { "Authorization": `Bearer ${apiKey}` }
+      });
+      const gateways = payRes.data.data?.paymentsGateways || [];
+      autoGatewayIds = gateways.filter((g: any) => g.status === "ACTIVE").map((g: any) => ({ gateway: g.gatewayName || g.name }));
+
       if (categoryId) {
         autoCategoryId = parseInt(categoryId);
         console.log(`Utilisation de la catégorie sélectionnée : ${autoCategoryId}`);
       } else {
-        console.log("Extraction automatique des paramètres de la boutique...");
-        const [catRes, payRes] = await Promise.all([
-          axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/categories`, {
-            headers: { "Authorization": `Bearer ${apiKey}` }
-          }),
-          axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/settings/payments`, {
-            headers: { "Authorization": `Bearer ${apiKey}` }
-          })
-        ]);
+        console.log("Détection automatique de la catégorie...");
+        const catRes = await axios.get(`https://business-api.antistock.io/v1/dash/shops/${shopId}/categories`, {
+          headers: { "Authorization": `Bearer ${apiKey}` }
+        });
 
         // Système de correspondance intelligente (Smart Matching)
         const categories = catRes.data.data || [];
@@ -52,9 +54,6 @@ export async function POST(req: Request) {
           if (fallbackCat) autoCategoryId = fallbackCat.id;
           else if (categories.length > 0) autoCategoryId = categories[0].id;
         }
-
-        const gateways = payRes.data.data?.paymentsGateways || [];
-        autoGatewayIds = gateways.filter((g: any) => g.status === "ACTIVE").map((g: any) => ({ gateway: g.gatewayName || g.name }));
       }
     } catch (fetchErr: any) {
       console.warn("Échec de l'auto-détection :", fetchErr.message);
@@ -98,7 +97,7 @@ export async function POST(req: Request) {
       status: "PUBLIC",
       visibility: "PUBLIC",
       unlisted: false,
-      imageIds: [finalImageId], 
+      ImageIds: [finalImageId], 
       categoryId: autoCategoryId,
       variants: [
         {
@@ -109,18 +108,11 @@ export async function POST(req: Request) {
           chargeType: "ONE_TIME",
           deliveryType: "PRESET", 
           customerNote: defaultMsg,
-          deliveryConfigurations: [
-            {
-              type: "SERIALS",
-              warehouseId: 2151518,
-              limitStock: 1,
-              displayStock: false
-            },
-            {
-              type: "TEXT",
-              textData: defaultMsg
-            }
-          ],
+          deliveryConfigurations: {
+            warehouseId: 2151518,
+            limitStock: 1,
+            displayStock: false
+          },
           gateways: autoGatewayIds 
         }
       ]
