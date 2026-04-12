@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // 1. Récupération des données de la boutique en arrière-plan (Catégories et Gateways)
     let autoCategoryId = 3022951; // Fallback "All" ou "Streaming"
     let autoGatewayIds: number[] = [];
-    const defaultMsg = "Thank you for your purchase! Your order is currently being processed by our team. As this is a premium digital product, we are performing a final verification to ensure you receive a fully working item. You will receive your delivery details in a separate email shortly (usually within 30 minutes to a few hours). Thank you for your patience and for choosing our shop!";
+    const defaultMsg = "Dear Customer,\n\nThank you for your purchase! Your order has been successfully confirmed.\n\nYou will receive another email within a maximum of 24 hours containing your access details and instructions.\n\nIf you have any questions in the meantime, please feel free to contact us.\n\nThank you for your trust!\n\nBest regards,";
 
     try {
       console.log("Extraction des paramètres de la boutique (Gateways)...");
